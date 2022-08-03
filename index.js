@@ -1,78 +1,67 @@
-const {promises:fs} = require('fs')
-class Contenedor {
-    static newId=0;//contenedor de memoria
-    constructor(ruta){
-        this.ruta=ruta;
+const fs = require('fs');
 
+class FileSystemContainer {
+  constructor(route) {
+    this.route = route;
+    this.fileExists = fs.existsSync(this.route)
+  }
+  async writeFile(input) {
+    fs.promises.writeFile(this.route, JSON.stringify(input));
+  }
+  async getAll() {
+    try {
+      if(this.fileExists === false) {
+        this.writeFile([])
+      }
+      const data = await fs.promises.readFile(this.route, 'utf-8');
+      return data ? JSON.parse(data) : [];
+    } catch (error) {
+      console.error(error);
     }
-    async guardar(obj){
-        let objs = await this.capturarTodo();
-        if(objs.length == 0){
-            Contenedor.newId=1;
-        }else{
-            Contenedor.newId++;
-        }
-        obj={id:Date.now(),...obj}//milisegundos 1/01/1971
-        // {nombre:"Luis",apellido:"Navas"}
-        let datos = [...objs,obj]
-        try {
-            await fs.writeFile(this.ruta,JSON.stringify(datos,null,2))
-        } catch (error) {
-            throw new Error(`Error al guardar los datos ${error}`)
-        }
+  }
+  async save(obj) {
+    try {
+      let data = await this.getAll();
+      let id = !data.length ? 1 : parseInt(data[data.length - 1].id) + 1;
+      data = [...data, { ...obj, id: id }];
+      await this.writeFile(data);
+      return id;
+    } catch (err) {
+      console.error(err);
     }
-    async capturarPorId(id){
-        let objs = await this.capturarTodo();
-        let obj = objs.filter(o=>o.id==id)
-        if(obj.length==0){
-            return `No se puede obtener el dato con el id: ${id}`
-        }
-        return obj
-    }
-    async capturarTodo(){
-        try {
-            const objs = await fs.readFile(this.ruta)
-            return JSON.parse(objs)
-        } catch (error) {
-            return []
-        }
-    }
-    async modificarDatos(obj){
-        let objs = await this.capturarTodo();
-        let index = objs.findIndex(o =>o.id==obj.id);
-        objs[index]=obj;
-        try {
-            await fs.writeFile(this.ruta,JSON.stringify(objs,null,2))
-        } catch (error) {
-            `No se puede modificar los datos`
-        }
-    }
-    async eliminarUno(id){
-        let objs = await this.capturarTodo();
-        let obj = objs.filter(o=>o.id!=id)
-        try {
-            await fs.writeFile(this.ruta,JSON.stringify(obj,null,2))
-        } catch (error) {
-            return `No se puede borrar ese registro`
-        }
-        
-    }
-    async eliminarTodo(){
-        try {
-            await fs.writeFile(this.ruta,JSON.stringify([],null,2))
-        } catch (error) {
-            return `No se pueden borrar los datos`
-        }
-    } 
+  }
 
+  async getById(id) {
+    try {
+      const data = await this.getAll();
+      const obj = data.find((x) => x.id == id);
+      return obj ? obj : null;
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  async deleteById(id) {
+    try {
+      const data = await this.getAll();
+      const index = data.findIndex((obj) => obj.id == id);
+      if (index > -1) {
+        const newData = data.slice(0, index).concat(data.slice(index + 1));
+        await this.writeFile(newData);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  async deleteAll() {
+    try {
+      await this.writeFile([]);
+      console.log('Todos los elementos han sido eliminados');
+    } catch (err) {
+      console.error(err);
+    }
+  }
 }
-
-let alumno = new Contenedor('./alumnos.json')
-
- alumno.modificarDatos({
-    "id": 1659103485065,
-    "name": "Pepito",
-    "lastName": "Oropeza"
-  })
-  .then(data=>console.log(data))
-  .catch((err=>console.log(err)))
