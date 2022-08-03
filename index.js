@@ -23,7 +23,7 @@ class FileSystemContainer {
     try {
       let data = await this.getAll();
       let id = !data.length ? 1 : parseInt(data[data.length - 1].id) + 1;
-      data = [...data, { ...obj, id: id }];
+      data = [...data, { obj, id: id }];
       await this.writeFile(data);
       return id;
     } catch (err) {
